@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using JokeStorageFunctionApp.Exceptions;
 using JokeStorageFunctionApp.Interfaces;
 using System;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ public class BlobService : IBlobService
     public BlobService(BlobContainerClient blobContainerClient)
     {
         _blobContainerClient = blobContainerClient;
+        _blobContainerClient.CreateIfNotExists();
     }
 
     public async Task SavePayloadAsync(string id, string content)
@@ -23,6 +25,12 @@ public class BlobService : IBlobService
     public async Task<string> GetPayloadAsync(string id)
     {
         var blobClient = _blobContainerClient.GetBlobClient($"{id}.json");
+
+        if (!await blobClient.ExistsAsync())
+        {
+            throw new BlobNotFoundException($"Blob with id {id} not found.");
+        }
+
         var download = await blobClient.DownloadContentAsync();
         return download.Value.Content.ToString();
     }

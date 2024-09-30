@@ -4,30 +4,42 @@ using Microsoft.Extensions.DependencyInjection;
 using JokeStorageFunctionApp.Services;
 using JokeStorageFunctionApp.Interfaces;
 using System;
+using Azure.Storage.Blobs;
 
 [assembly: FunctionsStartup(typeof(JokeStorageFunctionApp.Startup))]
 
-namespace JokeStorageFunctionApp
+namespace JokeStorageFunctionApp;
+
+public class Startup : FunctionsStartup
 {
-    public class Startup : FunctionsStartup
+    public override void Configure(IFunctionsHostBuilder builder)
     {
-        public override void Configure(IFunctionsHostBuilder builder)
+        builder.Services.AddSingleton((s) =>
         {
-            // Register TableServiceClient with your connection string
-            builder.Services.AddSingleton((s) =>
-            {
-                string connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
-                return new TableServiceClient(connectionString);
-            });
+            var connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+            return new TableServiceClient(connectionString);
+        });
 
-            // Register LogService with the table name you are using
-            builder.Services.AddSingleton<ILogService>(s =>
-            {
-                var tableServiceClient = s.GetRequiredService<TableServiceClient>();
-                return new LogService(tableServiceClient, "LogsTable"); // Replace "LogsTable" with your actual table name
-            });
+        builder.Services.AddSingleton((s) =>
+        {
+            var connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+            var blobServiceClient = new BlobServiceClient(connectionString);
 
-            builder.Services.AddHttpClient();
-        }
+            var blobContainerName = Environment.GetEnvironmentVariable("BlobContainerName");
+            return blobServiceClient.GetBlobContainerClient(blobContainerName);
+        });
+
+        builder.Services.AddSingleton<ILogService>(s =>
+        {
+            var tableServiceClient = s.GetRequiredService<TableServiceClient>();
+
+            var tableName = Environment.GetEnvironmentVariable("TableName");
+            return new LogService(tableServiceClient, tableName);
+        });
+
+        builder.Services.AddSingleton<IBlobService, BlobService>();
+
+        builder.Services.AddHttpClient();
     }
 }
+

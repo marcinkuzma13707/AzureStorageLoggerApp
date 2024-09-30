@@ -14,7 +14,7 @@ public class LogService : ILogService
     public LogService(TableServiceClient tableServiceClient, string tableName)
     {
         _tableClient = tableServiceClient.GetTableClient(tableName);
-        _tableClient.CreateIfNotExists();  // Ensure table exists
+        _tableClient.CreateIfNotExists();
     }
 
     public async Task AddLogAsync(LogEntry logEntry)

@@ -6,59 +6,59 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace JokeStorageFunctionApp.Functions
+namespace JokeStorageFunctionApp.Functions;
+
+public class JokeFetcherFunction
 {
-    public class JokeFetcherFunction
+    private readonly ILogService _logService;
+    private readonly IBlobService _blobService;
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<JokeFetcherFunction> _logger;
+
+    public JokeFetcherFunction(ILogService logService, IBlobService blobService, HttpClient httpClient, ILogger<JokeFetcherFunction> logger)
     {
-        private readonly ILogService _logService;
-        private readonly IBlobService _blobService;
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<JokeFetcherFunction> _logger;
+        _logService = logService;
+        _blobService = blobService;
+        _httpClient = httpClient;
+        _logger = logger;
+    }
 
-        public JokeFetcherFunction(ILogService logService, IBlobService blobService, HttpClient httpClient, ILogger<JokeFetcherFunction> logger)
+    [FunctionName("FetchJokeEveryMinute")]
+    public async Task Run([TimerTrigger("*/1 * * * *")] TimerInfo myTimer)
+    {
+        _logger.LogInformation($"Fetching joke at: {DateTime.Now}");
+
+        try
         {
-            _logService = logService;
-            _blobService = blobService;
-            _httpClient = httpClient;
-            _logger = logger;
+            var response = await _httpClient.GetStringAsync("https://official-joke-api.appspot.com/random_joke");
+
+            var logEntry = new LogEntry
+            {
+                PartitionKey = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                RowKey = Guid.NewGuid().ToString(),
+                TimeStamp = DateTime.UtcNow,
+                Status = "Success",
+                Message = "Joke fetched successfully"
+            };
+
+            await _logService.AddLogAsync(logEntry);
+            await _blobService.SavePayloadAsync(logEntry.RowKey, response);
+
         }
-
-        [FunctionName("FetchJokeEveryMinute")]
-        public async Task Run([TimerTrigger("*/1 * * * *")] TimerInfo myTimer)
+        catch (Exception ex)
         {
-            _logger.LogInformation($"Fetching joke at: {DateTime.Now}");
+            _logger.LogError(ex, "Error fetching joke.");
 
-            try
+            var logEntry = new LogEntry
             {
-                var response = await _httpClient.GetStringAsync("https://official-joke-api.appspot.com/random_joke");
-                var joke = response;
+                PartitionKey = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                RowKey = Guid.NewGuid().ToString(),
+                TimeStamp = DateTime.UtcNow,
+                Status = "Failure",
+                Message = ex.Message
+            };
 
-                // Log success and save to blob
-                var logEntry = new LogEntry
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    TimeStamp = DateTime.UtcNow,
-                    Status = "Success",
-                    Message = "Joke fetched successfully"
-                };
-
-                await _logService.AddLogAsync(logEntry);
-                await _blobService.SavePayloadAsync(logEntry.Id, response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching joke.");
-
-                var logEntry = new LogEntry
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    TimeStamp = DateTime.UtcNow,
-                    Status = "Failure",
-                    Message = ex.Message
-                };
-
-                await _logService.AddLogAsync(logEntry);
-            }
+            await _logService.AddLogAsync(logEntry);
         }
     }
 }

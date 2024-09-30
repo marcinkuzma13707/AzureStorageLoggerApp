@@ -6,14 +6,11 @@ namespace JokeStorageFunctionApp.Models;
 
 public class LogEntry : ITableEntity
 {
-    public string Id { get; set; }
-    public string PartitionKey { get; set; } = "JokeLogs";
-    public string RowKey { get; set; } // Typically this is the log ID
+    public string PartitionKey { get; set; }
+    public string RowKey { get; set; }
     public DateTime TimeStamp { get; set; }
-    public string Status { get; set; } // Success or Failure
-    public string Message { get; set; } // Optional, for error messages
-
-    // Required for ITableEntity
+    public string Status { get; set; }
+    public string Message { get; set; }
     public ETag ETag { get; set; }
     public DateTimeOffset? Timestamp { get; set; }
 }
