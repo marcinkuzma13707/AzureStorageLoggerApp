@@ -14,6 +14,7 @@ public class JokeFetcherFunction
     private readonly IBlobService _blobService;
     private readonly HttpClient _httpClient;
     private readonly ILogger<JokeFetcherFunction> _logger;
+    private const string ApiUrl = "https://official-joke-api.appspot.com/random_joke";
 
     public JokeFetcherFunction(ILogService logService, IBlobService blobService, HttpClient httpClient, ILogger<JokeFetcherFunction> logger)
     {
@@ -30,7 +31,7 @@ public class JokeFetcherFunction
 
         try
         {
-            var response = await _httpClient.GetStringAsync("https://official-joke-api.appspot.com/random_joke");
+            var response = await _httpClient.GetStringAsync(ApiUrl);
 
             var logEntry = new LogEntry
             {

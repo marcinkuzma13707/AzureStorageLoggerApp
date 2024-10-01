@@ -1,12 +1,11 @@
-﻿using JokeStorageFunctionApp.Interfaces;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using JokeStorageFunctionApp.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-
 
 namespace JokeStorageFunctionApp.Functions;
 
@@ -30,14 +29,22 @@ public class GetLogsFunction
                 return new BadRequestObjectResult("Invalid date range. Please specify valid 'from' and 'to' query parameters.");
             }
 
-            var logs = await _logService.GetLogsAsync(from, to);
+            var continuationToken = req.Query["continuationToken"];
 
-            if (logs == null || !logs.Any())
+            var result = await _logService.GetLogsAsync(from, to, continuationToken);
+
+            if (result.Logs == null || !result.Logs.Any())
             {
                 return new NotFoundResult();
             }
 
-            return new OkObjectResult(logs);
+            var response = new
+            {
+                logs = result.Logs,
+                continuationToken = result.ContinuationToken
+            };
+
+            return new OkObjectResult(response);
         }
         catch (Exception ex)
         {

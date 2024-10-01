@@ -1,9 +1,10 @@
-﻿using Azure.Data.Tables;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Azure.Data.Tables;
 using JokeStorageFunctionApp.Interfaces;
 using JokeStorageFunctionApp.Models;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace JokeStorageFunctionApp.Services;
 
@@ -22,16 +23,29 @@ public class LogService : ILogService
         await _tableClient.AddEntityAsync(logEntry);
     }
 
-    public async Task<List<LogEntry>> GetLogsAsync(DateTime from, DateTime to)
+    public async Task<LogServiceResult> GetLogsAsync(DateTime from, DateTime to, string continuationToken = null)
     {
         var logs = new List<LogEntry>();
-        var query = _tableClient.QueryAsync<LogEntry>(filter: $"Timestamp ge datetime'{from:O}' and Timestamp le datetime'{to:O}'");
 
-        await foreach (var log in query)
+        var query = _tableClient.QueryAsync<LogEntry>(
+            filter: $"Timestamp ge datetime'{from:O}' and Timestamp le datetime'{to:O}'",
+            maxPerPage: 100,
+            cancellationToken: CancellationToken.None);
+
+        string newContinuationToken = null;
+
+        await foreach (var page in query.AsPages(continuationToken))
         {
-            logs.Add(log);
+            logs.AddRange(page.Values);
+
+            newContinuationToken = page.ContinuationToken;
+            break;
         }
 
-        return logs;
+        return new LogServiceResult
+        {
+            Logs = logs,
+            ContinuationToken = newContinuationToken
+        };
     }
 }
